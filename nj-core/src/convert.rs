@@ -212,6 +212,23 @@ impl TryIntoJs for serde_json::map::Map<String, serde_json::Value> {
     }
 }
 
+#[cfg(feature = "chrono")]
+impl <Tz: chrono::TimeZone> TryIntoJs for chrono::DateTime<Tz> 
+where Tz::Offset: std::fmt::Display, {
+    fn try_to_js(self, js_env: &JsEnv) -> Result<napi_value, NjError> {
+        let as_rfc_str = self.to_rfc3339();
+        as_rfc_str.try_to_js(js_env)
+    }
+}
+
+#[cfg(feature = "rust_decimal")]
+impl TryIntoJs for rust_decimal::Decimal {
+    fn try_to_js(self, js_env: &JsEnv) -> Result<napi_value, NjError> {
+        let as_str = self.to_string();
+        as_str.try_to_js(js_env)
+    }
+}
+
 /// convert to js including error
 pub trait IntoJs {
     fn into_js(self, js_env: &JsEnv) -> napi_value;

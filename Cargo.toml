@@ -14,6 +14,8 @@ node = ["nj-sys", "nj-core", "nj-derive"]
 build = ["nj-build"]
 serde-json = ["nj-core/serde-json"]
 uuid = ["nj-core/convert-uuid"]
+chrono = ["nj-core/chrono"]
+rust_decimal = ["nj-core/rust_decimal"]
 
 [dependencies]
 nj-sys = { path = "nj-sys", version = "3.0.0", optional = true }
