@@ -213,8 +213,10 @@ impl TryIntoJs for serde_json::map::Map<String, serde_json::Value> {
 }
 
 #[cfg(feature = "chrono")]
-impl <Tz: chrono::TimeZone> TryIntoJs for chrono::DateTime<Tz> 
-where Tz::Offset: std::fmt::Display, {
+impl<Tz: chrono::TimeZone> TryIntoJs for chrono::DateTime<Tz>
+where
+    Tz::Offset: std::fmt::Display,
+{
     fn try_to_js(self, js_env: &JsEnv) -> Result<napi_value, NjError> {
         let as_rfc_str = self.to_rfc3339();
         as_rfc_str.try_to_js(js_env)
