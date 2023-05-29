@@ -27,7 +27,7 @@ use crate::JSObjectWrapper;
 use crate::JSValue;
 use crate::TryIntoJs;
 
-fn napi_value_type_to_string(js_type: napi_valuetype) -> &'static str {
+pub fn napi_value_type_to_string(js_type: napi_valuetype) -> &'static str {
     match js_type {
         crate::sys::napi_valuetype_napi_bigint => "big_int",
         crate::sys::napi_valuetype_napi_boolean => "bool",
@@ -225,7 +225,7 @@ impl JsEnv {
         ))?;
         Ok(())
     }
-    
+
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn get_element(&self, array: napi_value, index: u32) -> Result<napi_value, NjError> {
         let mut element = ptr::null_mut();

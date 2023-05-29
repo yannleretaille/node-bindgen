@@ -228,8 +228,10 @@ impl TryIntoJs for serde_json::map::Map<String, serde_json::Value> {
 }
 
 #[cfg(feature = "chrono")]
-impl <Tz: chrono::TimeZone> TryIntoJs for chrono::DateTime<Tz> 
-where Tz::Offset: std::fmt::Display, {
+impl<Tz: chrono::TimeZone> TryIntoJs for chrono::DateTime<Tz>
+where
+    Tz::Offset: std::fmt::Display,
+{
     fn try_to_js(self, js_env: &JsEnv) -> Result<napi_value, NjError> {
         let as_rfc_str = self.to_rfc3339();
         as_rfc_str.try_to_js(js_env)
@@ -460,6 +462,75 @@ where
         }
 
         Ok(hashmap)
+    }
+}
+
+#[cfg(feature = "serde_json")]
+impl<'a> JSValue<'a> for serde_json::Value {
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    fn convert_to_rust(env: &'a JsEnv, js_value: napi_value) -> Result<Self, NjError> {
+        let js_type = env.value_type(js_value)?;
+        match js_type {
+            crate::sys::napi_valuetype_napi_boolean => {
+                Ok(bool::convert_to_rust(env, js_value)?.into())
+            }
+            crate::sys::napi_valuetype_napi_null => Ok(serde_json::Value::Null),
+            crate::sys::napi_valuetype_napi_string => {
+                Ok(String::convert_to_rust(env, js_value)?.into())
+            }
+            crate::sys::napi_valuetype_napi_number => {
+                Ok(f64::convert_to_rust(env, js_value)?.into())
+            }
+            crate::sys::napi_valuetype_napi_object => {
+                if env.is_array(js_value)? {
+                    //Array
+                    Ok(Vec::<serde_json::Value>::convert_to_rust(env, js_value)?.into())
+                } else {
+                    //Object => serde::json::Map
+                    let js_obj = env.coerce_to_object(js_value)?;
+                    let js_props = env.get_property_names(js_obj)?;
+
+                    use crate::sys::napi_get_array_length;
+                    let mut props_len: u32 = 0;
+                    napi_call_result!(napi_get_array_length(
+                        env.inner(),
+                        js_props,
+                        &mut props_len
+                    ))?;
+
+                    let mut map = serde_json::Map::with_capacity(props_len as usize);
+
+                    for i in 0..props_len {
+                        // get raw property values
+                        let js_prop_name = env.get_element(js_props, i)?;
+                        let js_prop_value = env.get_property(js_obj, js_prop_name)?;
+
+                        // convert to rust values
+                        let name = String::convert_to_rust(env, js_prop_name)?;
+                        let value = serde_json::Value::convert_to_rust(env, js_prop_value)?;
+
+                        map.insert(name, value);
+                    }
+                    Ok(map.into())
+                }
+            }
+            crate::sys::napi_valuetype_napi_bigint => {
+                Ok(num_bigint::BigInt::convert_to_rust(env, js_value)?
+                    .to_string()
+                    .into())
+            }
+            crate::sys::napi_valuetype_napi_undefined
+            | crate::sys::napi_valuetype_napi_function
+            | crate::sys::napi_valuetype_napi_external
+            | crate::sys::napi_valuetype_napi_symbol => Err(NjError::Other(format!(
+                "Cannot convert `{}` to serde_json::value",
+                crate::basic::napi_value_type_to_string(js_type)
+            ))),
+            _ => Err(NjError::Other(format!(
+                "Cannot convert unknown type `{}` to serde_json::value",
+                crate::basic::napi_value_type_to_string(js_type)
+            ))),
+        }
     }
 }
 
